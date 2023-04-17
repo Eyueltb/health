@@ -1,0 +1,149 @@
+package com.codility;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.Assert;
+import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.*;
+
+public class VersionTest {
+    // ... write your unit tests here ...
+     @Test
+    public void testConstructorWithNullArgument() {
+        assertThatThrownBy(() -> new Version(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(errorVersionMustNotBeNull);
+    }
+
+    @Test
+    public void testConstructorWithInvalidArgument() {
+        assertThatThrownBy(() -> new Version("invalid-version"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(errorVersionMustMatchPattern);
+    }
+
+    @Test
+    public void testSample() {
+        Version version = new Version("1.2.3");
+        assertThat(version.getMajor()).isEqualTo(1);
+        assertThat(version.getMinor()).isEqualTo(2);
+        assertThat(version.getPatch()).isEqualTo(3);
+        assertThat(version.isSnapshot()).isFalse();
+
+        Version version1 = new Version("3.8.0-SNAPSHOT");
+        assertThat(version1.getMajor()).isEqualTo(3);
+        assertThat(version1.getMinor()).isEqualTo(8);
+        assertThat(version1.getPatch()).isEqualTo(0);
+        assertThat(version1.isSnapshot()).isTrue();
+
+        Version version2 = new Version("1");
+        assertThat(version2.getMajor()).isEqualTo(1);
+        assertThat(version2.getMinor()).isEqualTo(0);
+        assertThat(version2.getPatch()).isEqualTo(0);
+        assertThat(version2.isSnapshot()).isFalse();
+
+        Version version3 = new Version("2.3");
+        assertThat(version3.getMajor()).isEqualTo(2);
+        assertThat(version3.getMinor()).isEqualTo(3);
+        assertThat(version3.getPatch()).isEqualTo(0);
+        assertThat(version3.isSnapshot()).isFalse();
+    }
+
+    @Test
+    public void testCompareToWithDifferentVersions() {
+        Version version1 = new Version("1.2.3");
+        Version version2 = new Version("1.2.4");
+        Version version3 = new Version("1.3.0");
+        Version version4 = new Version("2.0.0");
+        Version version5 = new Version("1.2.3-SNAPSHOT");
+
+        assertThat(version1.compareTo(version1)).isEqualTo(0);
+        assertThat(version1.compareTo(version2)).isLessThan(0);
+        assertThat(version2.compareTo(version1)).isGreaterThan(0);
+        assertThat(version2.compareTo(version3)).isLessThan(0);
+        assertThat(version3.compareTo(version2)).isGreaterThan(0);
+        assertThat(version3.compareTo(version4)).isLessThan(0);
+        assertThat(version4.compareTo(version3)).isGreaterThan(0);
+        assertThat(version1.compareTo(version5)).isGreaterThan(0);
+        assertThat(version5.compareTo(version1)).isLessThan(0);
+    }
+
+    // expected error messages:
+
+    static final String errorVersionMustNotBeNull = "'version' must not be null!";
+    static final String errorOtherMustNotBeNull =  "'other' must not be null!";
+    static final String errorVersionMustMatchPattern =  "'version' must match: 'major.minor.patch(-SNAPSHOT)'!";
+}
+
+class Version implements Comparable<Version> {
+    private final int major;
+    private final int minor;
+    private final int patch;
+    private final boolean snapshot;
+
+    public Version(String version) {
+        if (version == null) {
+            throw new IllegalArgumentException("'version' must not be null!");
+        }
+        Pattern pattern = Pattern.compile("(\\d+)(\\.(\\d+))?(\\.(\\d+))?(-SNAPSHOT)?");
+        Matcher matcher = pattern.matcher(version);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("'version' must match: 'major.minor.patch(-SNAPSHOT)'!");
+        }
+        major = Integer.parseInt(matcher.group(1));
+        minor = matcher.group(3) != null ? Integer.parseInt(matcher.group(3)) : 0;
+        patch = matcher.group(5) != null ? Integer.parseInt(matcher.group(5)) : 0;
+        snapshot = matcher.group(6) != null;
+    }
+
+    public boolean isSnapshot(){ return snapshot; }
+
+    @Override
+    public int compareTo(Version other) {
+     if (other == null) {
+        throw new IllegalArgumentException("'other' must not be null!");
+    }
+    int snapshotCompare = Boolean.compare(snapshot, other.snapshot);
+    if (snapshotCompare != 0) {
+        return snapshotCompare;
+    }
+    return major != other.major ? Integer.compare(major, other.major) :
+           minor != other.minor ? Integer.compare(minor, other.minor) :
+           Integer.compare(patch, other.patch);
+    }
+    public int getMajor() {return major; }
+
+    public int getMinor() {return minor; }
+
+    public int getPatch() {return patch; }
+}
+
+
+ /**
+     * If you don’t have final attributes, you can use only @Data.
+     * But if you have final attributes, you need both @Data and @NoArgsConstructor
+     *
+     * @Data also include @RequiredArgsConstructor it will create empty constructor in our case because we don't have final
+     */
+    @Data //it creates empty constructor and jaskon needs empty constructor
+    static class HealthCheckResponse {
+        //@JsonProperty(value = "status")-> when status is empty
+        private String status;
+        private ZonedDateTime currentTime;
+
+        /**Ensure that current time is not added to json if it's null
+           "2018-06-06T21:59:36Z"
+            {
+            "currentTime":"2018-06-06T21:59:36Z",
+            "status":"OK"
+            }
+
+         */
+        //here we override the getter based on owr on format
+        //Jkson library uses getter,
+        @JsonInclude(NON_NULL) //it will remove the row currentTime only if value is null
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+        public ZonedDateTime getCurrentTime() {
+            return currentTime;
+        }
+    }
